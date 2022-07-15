@@ -1,6 +1,5 @@
 #include <stddef.h>
 #include "gnu-efi/inc/efi.h"
-#include "gnu-efi/inc/efilib.h"
 
 void PutPixel(EFI_GRAPHICS_OUTPUT_PROTOCOL* gop, size_t x, size_t y, uint32_t color) {
     *((uint32_t*)(gop->Mode->FrameBufferBase + 4 * gop->Mode->Info->PixelsPerScanLine * y + 4 * x)) = color;
