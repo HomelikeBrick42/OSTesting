@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <stdbool.h>
 #include "gnu-efi/inc/efi.h"
 
 typedef struct {
@@ -59,7 +60,9 @@ EFI_STATUS EFIAPI EfiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
         }
     }
 
-    while (1)
-        ;
+    while (true) {
+        asm volatile("hlt");
+    }
+
     return EFI_SUCCESS;
 }
