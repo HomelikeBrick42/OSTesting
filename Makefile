@@ -1,8 +1,8 @@
 CC = x86_64-w64-mingw32-gcc
 CFLAGS = -Wl,-subsystem,10 -nostdlib \
-		 -fshort-wchar -fno-stack-protector \
+		 -fshort-wchar -fno-stack-protector -fno-stack-check \
 		 -Wall -Wextra -Werror -Wno-unused-parameter \
-         -e EfiMain
+         -e EfiMain -mno-stack-arg-probe
 
 all: Main.efi
 

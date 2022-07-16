@@ -8,6 +8,11 @@ typedef struct {
     uint8_t b;
 } Color;
 
+typedef struct {
+    char* Data;
+    size_t Length;
+} String;
+
 void PutPixel(EFI_GRAPHICS_OUTPUT_PROTOCOL* gop, EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* info, size_t x, size_t y, Color color) {
     uint8_t* pixel = (uint8_t*)(gop->Mode->FrameBufferBase + 4 * gop->Mode->Info->PixelsPerScanLine * y + 4 * x);
     if (info->PixelFormat == PixelRedGreenBlueReserved8BitPerColor) {
@@ -23,15 +28,45 @@ void PutPixel(EFI_GRAPHICS_OUTPUT_PROTOCOL* gop, EFI_GRAPHICS_OUTPUT_MODE_INFORM
     }
 }
 
+void WriteString(EFI_SYSTEM_TABLE* SystemTable, String string) {
+    WCHAR buffer[string.Length + 1];
+    for (size_t i = 0; i < string.Length; i++) {
+        buffer[i] = (WCHAR)string.Data[i];
+    }
+    buffer[string.Length] = 0;
+    SystemTable->ConOut->OutputString(SystemTable->ConOut, buffer);
+}
+
+String UInt64ToString(char buffer[static 20], uint64_t value) {
+    size_t length = 0;
+    {
+        uint64_t temp = value;
+        while (temp != 0) {
+            temp /= 10;
+            length++;
+        }
+    }
+    if (length > 0) {
+        for (size_t i = 0; i < length; i++) {
+            buffer[length - i - 1] = value % 10 + '0';
+            value /= 10;
+        }
+    } else {
+        buffer[0] = '0';
+        length++;
+    }
+    return (String){ .Data = buffer, .Length = length };
+}
+
 EFI_STATUS EFIAPI EfiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable) {
     EFI_GUID gopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
     EFI_GRAPHICS_OUTPUT_PROTOCOL* gop;
     EFI_STATUS status = SystemTable->BootServices->LocateProtocol(&gopGuid, NULL, (void**)&gop);
     if (EFI_ERROR(status)) {
-        SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Unable to locate GOP\n");
+        SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Unable to locate GOP\r\n");
         return status;
     }
-    SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Located GOP\n");
+    SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Located GOP\r\n");
 
     EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* info;
     UINTN SizeOfInfo, numModes, nativeMode;
@@ -39,7 +74,7 @@ EFI_STATUS EFIAPI EfiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
     if (status == EFI_NOT_STARTED)
         status = gop->SetMode(gop, 0);
     if (EFI_ERROR(status)) {
-        SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Unable to get native GOP mode\n");
+        SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Unable to get native GOP mode\r\n");
         return status;
     } else {
         nativeMode = gop->Mode->Mode;
@@ -48,9 +83,23 @@ EFI_STATUS EFIAPI EfiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
     (void)nativeMode;
     (void)numModes;
 
+    // for (size_t i = 0; i < (size_t)numModes; i++) {
+    //     status = gop->QueryMode(gop, i, &SizeOfInfo, &info);
+    //     SystemTable->ConOut->OutputString(SystemTable->ConOut, L"mode ");
+    //     char buffer[20];
+    //     WriteString(SystemTable, UInt64ToString(buffer, i));
+    //     SystemTable->ConOut->OutputString(SystemTable->ConOut, L" width ");
+    //     WriteString(SystemTable, UInt64ToString(buffer, info->HorizontalResolution));
+    //     SystemTable->ConOut->OutputString(SystemTable->ConOut, L" height ");
+    //     WriteString(SystemTable, UInt64ToString(buffer, info->VerticalResolution));
+    //     SystemTable->ConOut->OutputString(SystemTable->ConOut, L" format ");
+    //     WriteString(SystemTable, UInt64ToString(buffer, info->PixelFormat));
+    //     SystemTable->ConOut->OutputString(SystemTable->ConOut, i == nativeMode ? L" (current)\r\n" : L"\r\n");
+    // }
+
     if (info->PixelFormat != PixelRedGreenBlueReserved8BitPerColor &&
         info->PixelFormat != PixelBlueGreenRedReserved8BitPerColor) {
-        SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Unsupported GOP pixel format\n");
+        SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Unsupported GOP pixel format\r\n");
         return EFI_UNSUPPORTED;
     }
 
