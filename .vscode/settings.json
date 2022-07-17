@@ -1,6 +1,7 @@
 {
 	"files.associations": {
 		"*.shader": "glsl",
-		"stddef.h": "c"
+		"stddef.h": "c",
+		"efi.h": "c"
 	}
 }

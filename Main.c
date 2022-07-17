@@ -1,32 +1,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include "gnu-efi/inc/efi.h"
-
-typedef struct {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-} Color;
-
-typedef struct {
-    char* Data;
-    size_t Length;
-} String;
-
-void PutPixel(EFI_GRAPHICS_OUTPUT_PROTOCOL* gop, EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* info, size_t x, size_t y, Color color) {
-    uint8_t* pixel = (uint8_t*)(gop->Mode->FrameBufferBase + 4 * gop->Mode->Info->PixelsPerScanLine * y + 4 * x);
-    if (info->PixelFormat == PixelRedGreenBlueReserved8BitPerColor) {
-        pixel[0] = color.r;
-        pixel[1] = color.g;
-        pixel[2] = color.b;
-    } else if (info->PixelFormat == PixelBlueGreenRedReserved8BitPerColor) {
-        pixel[0] = color.b;
-        pixel[1] = color.g;
-        pixel[2] = color.r;
-    } else {
-        // do nothing
-    }
-}
+#include "IO.h"
 
 void WriteString(EFI_SYSTEM_TABLE* SystemTable, String string) {
     WCHAR buffer[string.Length + 1];
@@ -58,10 +33,9 @@ String UInt64ToString(char buffer[static 20], uint64_t value) {
     return (String){ .Data = buffer, .Length = length };
 }
 
-EFI_STATUS EFIAPI EfiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable) {
-    EFI_GUID gopGuid = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
-    EFI_GRAPHICS_OUTPUT_PROTOCOL* gop;
-    EFI_STATUS status = SystemTable->BootServices->LocateProtocol(&gopGuid, NULL, (void**)&gop);
+EFI_STATUS LocateGOP(EFI_SYSTEM_TABLE* SystemTable, EFI_GRAPHICS_OUTPUT_PROTOCOL** gop) {
+    EFI_GUID gopGuid  = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
+    EFI_STATUS status = SystemTable->BootServices->LocateProtocol(&gopGuid, NULL, (void**)gop);
     if (EFI_ERROR(status)) {
         SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Unable to locate GOP\r\n");
         return status;
@@ -70,32 +44,32 @@ EFI_STATUS EFIAPI EfiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
 
     EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* info;
     UINTN SizeOfInfo, numModes, nativeMode;
-    status = gop->QueryMode(gop, gop->Mode == NULL ? 0 : gop->Mode->Mode, &SizeOfInfo, &info);
+    status = (*gop)->QueryMode((*gop), (*gop)->Mode == NULL ? 0 : (*gop)->Mode->Mode, &SizeOfInfo, &info);
     if (status == EFI_NOT_STARTED)
-        status = gop->SetMode(gop, 0);
+        status = (*gop)->SetMode((*gop), 0);
     if (EFI_ERROR(status)) {
         SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Unable to get native GOP mode\r\n");
         return status;
     } else {
-        nativeMode = gop->Mode->Mode;
-        numModes   = gop->Mode->MaxMode;
+        nativeMode = (*gop)->Mode->Mode;
+        numModes   = (*gop)->Mode->MaxMode;
     }
-    (void)nativeMode;
-    (void)numModes;
 
-    // for (size_t i = 0; i < (size_t)numModes; i++) {
-    //     status = gop->QueryMode(gop, i, &SizeOfInfo, &info);
-    //     SystemTable->ConOut->OutputString(SystemTable->ConOut, L"mode ");
-    //     char buffer[20];
-    //     WriteString(SystemTable, UInt64ToString(buffer, i));
-    //     SystemTable->ConOut->OutputString(SystemTable->ConOut, L" width ");
-    //     WriteString(SystemTable, UInt64ToString(buffer, info->HorizontalResolution));
-    //     SystemTable->ConOut->OutputString(SystemTable->ConOut, L" height ");
-    //     WriteString(SystemTable, UInt64ToString(buffer, info->VerticalResolution));
-    //     SystemTable->ConOut->OutputString(SystemTable->ConOut, L" format ");
-    //     WriteString(SystemTable, UInt64ToString(buffer, info->PixelFormat));
-    //     SystemTable->ConOut->OutputString(SystemTable->ConOut, i == nativeMode ? L" (current)\r\n" : L"\r\n");
-    // }
+    if (false) {
+        for (size_t i = 0; i < (size_t)numModes; i++) {
+            status = (*gop)->QueryMode((*gop), i, &SizeOfInfo, &info);
+            SystemTable->ConOut->OutputString(SystemTable->ConOut, L"mode ");
+            char buffer[20];
+            WriteString(SystemTable, UInt64ToString(buffer, i));
+            SystemTable->ConOut->OutputString(SystemTable->ConOut, L" width ");
+            WriteString(SystemTable, UInt64ToString(buffer, info->HorizontalResolution));
+            SystemTable->ConOut->OutputString(SystemTable->ConOut, L" height ");
+            WriteString(SystemTable, UInt64ToString(buffer, info->VerticalResolution));
+            SystemTable->ConOut->OutputString(SystemTable->ConOut, L" format ");
+            WriteString(SystemTable, UInt64ToString(buffer, info->PixelFormat));
+            SystemTable->ConOut->OutputString(SystemTable->ConOut, i == nativeMode ? L" (current)\r\n" : L"\r\n");
+        }
+    }
 
     if (info->PixelFormat != PixelRedGreenBlueReserved8BitPerColor &&
         info->PixelFormat != PixelBlueGreenRedReserved8BitPerColor) {
@@ -103,10 +77,42 @@ EFI_STATUS EFIAPI EfiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
         return EFI_UNSUPPORTED;
     }
 
+    return EFI_SUCCESS;
+}
+
+EFI_STATUS EFIAPI EfiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable) {
+    EFI_GRAPHICS_OUTPUT_PROTOCOL* gop;
+    EFI_STATUS status = LocateGOP(SystemTable, &gop);
+    if (EFI_ERROR(status)) {
+        SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Unable to load GOP\r\n");
+        return status;
+    }
+
+    EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* info;
+    UINTN SizeOfInfo;
+    status = gop->QueryMode(gop, gop->Mode == NULL ? 0 : gop->Mode->Mode, &SizeOfInfo, &info);
+    if (EFI_ERROR(status)) {
+        SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Unable to get GOP info\r\n");
+        return status;
+    }
+
+    // Fill screen with blue
     for (size_t y = 0; y < gop->Mode->Info->VerticalResolution; y++) {
         for (size_t x = 0; x < gop->Mode->Info->HorizontalResolution; x++) {
-            PutPixel(gop, info, x, y, (Color){ .r = 255, .g = 0, .b = 0 });
+            PutPixel(gop, info, x, y, (Color){ .r = 0, .g = 0, .b = 51 });
         }
+    }
+
+    const Color TextColor   = { .r = 255, .g = 0, .b = 255 };
+    const size_t LeftMargin = 10;
+    size_t cursorX          = LeftMargin;
+    size_t cursorY          = 20;
+
+    for (size_t i = 0; i < 20; i++) {
+        char buffer[20];
+        PutString(gop, info, LeftMargin, &cursorX, &cursorY, String_FromLiteral("Iteration: "), TextColor);
+        PutString(gop, info, LeftMargin, &cursorX, &cursorY, UInt64ToString(buffer, i), TextColor);
+        PutString(gop, info, LeftMargin, &cursorX, &cursorY, String_FromLiteral("\n"), TextColor);
     }
 
     while (true) {
@@ -115,3 +121,5 @@ EFI_STATUS EFIAPI EfiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
 
     return EFI_SUCCESS;
 }
+
+#include "IO.c"
