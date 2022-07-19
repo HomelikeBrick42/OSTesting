@@ -1,12 +1,19 @@
 #include "IO.h"
 
-void PutPixel(EFI_GRAPHICS_OUTPUT_PROTOCOL* gop, EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* info, size_t x, size_t y, Color color) {
-    uint8_t* pixel = (uint8_t*)(gop->Mode->FrameBufferBase + 4 * gop->Mode->Info->PixelsPerScanLine * y + 4 * x);
-    if (info->PixelFormat == PixelRedGreenBlueReserved8BitPerColor) {
+Framebuffer Screen;
+
+void PutPixel(size_t x, size_t y, Color color) {
+    if (x >= Screen.Width)
+        return;
+    if (y >= Screen.Height)
+        return;
+
+    uint8_t* pixel = (uint8_t*)&((uint32_t*)Screen.Buffer)[x + y * Screen.PixelsPerScanline];
+    if (Screen.Format == FramebufferFormat_ARGB) {
         pixel[0] = color.r;
         pixel[1] = color.g;
         pixel[2] = color.b;
-    } else if (info->PixelFormat == PixelBlueGreenRedReserved8BitPerColor) {
+    } else if (Screen.Format == FramebufferFormat_ABGR) {
         pixel[0] = color.b;
         pixel[1] = color.g;
         pixel[2] = color.r;
@@ -15,26 +22,29 @@ void PutPixel(EFI_GRAPHICS_OUTPUT_PROTOCOL* gop, EFI_GRAPHICS_OUTPUT_MODE_INFORM
     }
 }
 
-void PutChar(
-    EFI_GRAPHICS_OUTPUT_PROTOCOL* gop, EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* info, size_t x, size_t y, char chr, Color color) {
+void FillRect(size_t x, size_t y, size_t width, size_t height, Color color) {
+    for (size_t yOffset = 0; yOffset < height; yOffset++) {
+        for (size_t xOffset = 0; xOffset < width; xOffset++) {
+            PutPixel(x + xOffset, y + yOffset, color);
+        }
+    }
+}
+
+void PutChar(size_t x, size_t y, char chr, Color backgroundColor, Color textColor) {
     if (chr < 0 || chr > 126)
         chr = '?';
     for (size_t xOffset = 0; xOffset < CHAR_WIDTH; xOffset++) {
         for (size_t yOffset = 0; yOffset < CHAR_HEIGHT; yOffset++) {
             if (Font[chr - 32][CHAR_HEIGHT - yOffset - 1] & (1 << (CHAR_WIDTH - xOffset - 1))) {
-                PutPixel(gop, info, x + xOffset, y + yOffset, color);
+                PutPixel(x + xOffset, y + yOffset, textColor);
+            } else {
+                PutPixel(x + xOffset, y + yOffset, backgroundColor);
             }
         }
     }
 }
 
-void PutString(EFI_GRAPHICS_OUTPUT_PROTOCOL* gop,
-               EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* info,
-               size_t startX,
-               size_t* x,
-               size_t* y,
-               String string,
-               Color color) {
+void PutString(size_t startX, size_t* x, size_t* y, String string, Color backgroundColor, Color textColor) {
     for (size_t i = 0; i < string.Length; i++) {
         switch (string.Data[i]) {
             case '\r': {
@@ -47,7 +57,7 @@ void PutString(EFI_GRAPHICS_OUTPUT_PROTOCOL* gop,
             } break;
 
             default: {
-                PutChar(gop, info, *x, *y, string.Data[i], color);
+                PutChar(*x, *y, string.Data[i], backgroundColor, textColor);
                 *x += CHAR_WIDTH;
             }
         }

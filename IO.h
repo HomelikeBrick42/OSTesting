@@ -1,7 +1,21 @@
 #pragma once
 
 #include <stddef.h>
-#include "gnu-efi/inc/efi.h"
+#include <stdint.h>
+
+typedef struct {
+    void* Buffer;
+    size_t Width;
+    size_t Height;
+    size_t PixelsPerScanline;
+    enum {
+        FramebufferFormat_Invalid,
+        FramebufferFormat_ARGB,
+        FramebufferFormat_ABGR,
+    } Format;
+} Framebuffer;
+
+extern Framebuffer Screen;
 
 typedef struct {
     uint8_t r;
@@ -9,15 +23,15 @@ typedef struct {
     uint8_t b;
 } Color;
 
-void PutPixel(EFI_GRAPHICS_OUTPUT_PROTOCOL* gop, EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* info, size_t x, size_t y, Color color);
+void PutPixel(size_t x, size_t y, Color color);
+void FillRect(size_t x, size_t y, size_t width, size_t height, Color color);
 
 enum {
     CHAR_WIDTH  = 8,
     CHAR_HEIGHT = 13,
 };
 extern unsigned char Font[95][13];
-void PutChar(
-    EFI_GRAPHICS_OUTPUT_PROTOCOL* gop, EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* info, size_t x, size_t y, char chr, Color color);
+void PutChar(size_t x, size_t y, char chr, Color backgroundColor, Color textColor);
 
 typedef struct {
     char* Data;
@@ -28,10 +42,4 @@ typedef struct {
         .Data = s, .Length = sizeof(s) - 1, \
     }
 
-void PutString(EFI_GRAPHICS_OUTPUT_PROTOCOL* gop,
-               EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* info,
-               size_t startX,
-               size_t* x,
-               size_t* y,
-               String string,
-               Color color);
+void PutString(size_t startX, size_t* x, size_t* y, String string, Color backgroundColor, Color textColor);
