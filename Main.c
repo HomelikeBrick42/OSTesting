@@ -1,11 +1,12 @@
+#include "IO.h"
+#include "Kernel.h"
+
+#include "gnu-efi/inc/efi.h"
+
 #include <stddef.h>
 #include <stdbool.h>
-#include "gnu-efi/inc/efi.h"
-#include "IO.h"
-#include "IDT.h"
-#include "Interrupts.h"
 
-void WriteString(EFI_SYSTEM_TABLE* SystemTable, String string) {
+static void WriteString(EFI_SYSTEM_TABLE* SystemTable, String string) {
     WCHAR buffer[string.Length + 1];
     for (size_t i = 0; i < string.Length; i++) {
         buffer[i] = (WCHAR)string.Data[i];
@@ -14,28 +15,7 @@ void WriteString(EFI_SYSTEM_TABLE* SystemTable, String string) {
     SystemTable->ConOut->OutputString(SystemTable->ConOut, buffer);
 }
 
-String UInt64ToString(char buffer[static 20], uint64_t value) {
-    size_t length = 0;
-    {
-        uint64_t temp = value;
-        while (temp != 0) {
-            temp /= 10;
-            length++;
-        }
-    }
-    if (length > 0) {
-        for (size_t i = 0; i < length; i++) {
-            buffer[length - i - 1] = value % 10 + '0';
-            value /= 10;
-        }
-    } else {
-        buffer[0] = '0';
-        length++;
-    }
-    return (String){ .Data = buffer, .Length = length };
-}
-
-EFI_STATUS LocateGOP(EFI_SYSTEM_TABLE* SystemTable, EFI_GRAPHICS_OUTPUT_PROTOCOL** gop) {
+static EFI_STATUS LocateGOP(EFI_SYSTEM_TABLE* SystemTable, EFI_GRAPHICS_OUTPUT_PROTOCOL** gop) {
     EFI_GUID gopGuid  = EFI_GRAPHICS_OUTPUT_PROTOCOL_GUID;
     EFI_STATUS status = SystemTable->BootServices->LocateProtocol(&gopGuid, NULL, (void**)gop);
     if (EFI_ERROR(status)) {
@@ -82,30 +62,6 @@ EFI_STATUS LocateGOP(EFI_SYSTEM_TABLE* SystemTable, EFI_GRAPHICS_OUTPUT_PROTOCOL
     return EFI_SUCCESS;
 }
 
-IDTR GlobalIDTR;
-EFI_STATUS PrepareInterrupts(EFI_SYSTEM_TABLE* SystemTable) {
-    asm volatile("cli");
-
-    GlobalIDTR.Limit = 0xFFFF;
-    EFI_PHYSICAL_ADDRESS ptr;
-    EFI_STATUS status = SystemTable->BootServices->AllocatePages(AllocateAnyPages, EfiLoaderData, 1, &ptr);
-    if (EFI_ERROR(status) || ptr == 0) {
-        SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Unable to allocate page for interrupts\r\n");
-        return status;
-    }
-    GlobalIDTR.Offset = (uint64_t)ptr;
-
-    // IDTDescriptorEntry* pageFault = (IDTDescriptorEntry*)(GlobalIDTR.Offset + 0xE * sizeof(IDTDescriptorEntry));
-    // IDTDescriptorEntry_SetOffset(pageFault, (uint64_t)PageFault_Handler);
-    // pageFault->TypesAttributes = IDT_TA_InterruptGate;
-    // pageFault->Selector        = 0x08;
-
-    asm volatile("lidt %0" : : "m"(GlobalIDTR));
-
-    asm volatile("sti");
-    return EFI_SUCCESS;
-}
-
 EFI_STATUS EFIAPI EfiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable) {
     EFI_GRAPHICS_OUTPUT_PROTOCOL* gop;
     EFI_STATUS status = LocateGOP(SystemTable, &gop);
@@ -132,30 +88,7 @@ EFI_STATUS EFIAPI EfiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
                                : info->PixelFormat == PixelBlueGreenRedReserved8BitPerColor ? FramebufferFormat_ABGR
                                                                                             : FramebufferFormat_Invalid;
 
-    // need to exit boot services before making an interrupt table
-    // status = PrepareInterrupts(SystemTable);
-    if (EFI_ERROR(status)) {
-        SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Unable to prepare interrupts\r\n");
-        return status;
-    }
-
-    const Color BackgroundColor = { .r = 0, .g = 0, .b = 51 };
-    FillRect(0, 0, Screen.Width, Screen.Height, BackgroundColor);
-
-    const Color TextColor   = { .r = 255, .g = 51, .b = 51 };
-    const size_t LeftMargin = 10;
-    size_t cursorX          = LeftMargin;
-    size_t cursorY          = 20;
-
-    size_t i = 0;
-    while (true) {
-        char buffer[20];
-        PutString(LeftMargin, &cursorX, &cursorY, String_FromLiteral("Iterations: "), BackgroundColor, TextColor);
-        PutString(LeftMargin, &cursorX, &cursorY, UInt64ToString(buffer, i), BackgroundColor, TextColor);
-        PutString(LeftMargin, &cursorX, &cursorY, String_FromLiteral("\r"), BackgroundColor, TextColor);
-        i++;
-        asm volatile("hlt");
-    }
+    KernelMain();
 
     return EFI_SUCCESS;
 }
