@@ -1,5 +1,5 @@
 #include "PageAllocator.h"
-#include "IO.h"
+#include "IO/IO.h"
 
 static size_t GetMemorySize(EfiMemoryDescriptor* memoryMap, size_t memoryMapSize, size_t memoryMapDescriptorSize) {
     size_t size = 0;
@@ -11,14 +11,14 @@ static size_t GetMemorySize(EfiMemoryDescriptor* memoryMap, size_t memoryMapSize
 }
 
 size_t NumPages    = 0;
-uint8_t* PageTable = (void*)-1;
+uint8_t* PageTable = NULL;
 
 bool PageAllocator_Initialize(EfiMemoryDescriptor* memoryMap, size_t memoryMapSize, size_t memoryMapDescriptorSize) {
     size_t memorySize   = GetMemorySize(memoryMap, memoryMapSize, memoryMapDescriptorSize);
     NumPages            = memorySize / 4096;
     size_t requiredSize = NumPages / 8;
 
-    PageTable = (void*)-1;
+    PageTable = NULL;
     {
         void* consecutiveFreePagesStart = NULL;
         size_t consecutiveFreePages     = 0;
@@ -32,13 +32,17 @@ bool PageAllocator_Initialize(EfiMemoryDescriptor* memoryMap, size_t memoryMapSi
             if (consecutiveFreePagesStart == NULL)
                 consecutiveFreePagesStart = (void*)memoryDescriptor->PhysicalAddress;
             consecutiveFreePages += memoryDescriptor->NumPages;
+            if (consecutiveFreePagesStart == NULL) {
+                consecutiveFreePagesStart = (void*)4096; // skip first page
+                consecutiveFreePages -= 1;
+            }
             if ((consecutiveFreePages * 4096) >= requiredSize) {
                 PageTable = consecutiveFreePagesStart;
                 break;
             }
         }
     }
-    if (PageTable == (void*)-1)
+    if (PageTable == NULL)
         return false;
 
     for (size_t i = 0; i < (memoryMapSize / memoryMapDescriptorSize); i++) {

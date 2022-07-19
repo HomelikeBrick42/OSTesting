@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "EFIMemory.h"
+#include "Memory/EfiMemory.h"
 
 bool PageAllocator_Initialize(EfiMemoryDescriptor* memoryMap, size_t memoryMapSize, size_t memoryMapDescriptorSize);
 void PageAllocator_UnreservePages(void* address, size_t count);

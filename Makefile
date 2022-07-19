@@ -2,12 +2,19 @@ CC = x86_64-w64-mingw32-gcc
 CFLAGS = -Wl,-subsystem,10 -nostdlib \
 		 -fshort-wchar -fno-stack-protector -mno-red-zone -fno-stack-check -mgeneral-regs-only \
 		 -Wall -Wextra -Werror -Wno-unused-parameter \
-         -e EfiMain -mno-stack-arg-probe
+         -e EfiMain -mno-stack-arg-probe \
+		 -Isrc -Ignu-efi/inc
 
 all: Main.efi
 
-Main.efi: *.c *.h
-	$(CC) $(CFLAGS) $(wildcard *.c) -o $@
+SRCDIR := src
+
+rwildcard=$(foreach d,$(wildcard $(1:=/*)),$(call rwildcard,$d,$2) $(filter $(subst *,%,$2),$d))
+SRC = $(call rwildcard,$(SRCDIR),*.c)
+HDR = $(call rwildcard,$(SRCDIR),*.h)
+
+Main.efi: $(SRC) $(HDR)
+	$(CC) $(CFLAGS) $(SRC) -o $@
 
 qemu: Main.efi OVMF.fd image/EFI/BOOT/BOOTX64.EFI
 	qemu-system-x86_64 -bios OVMF.fd -drive file=fat:rw:image,media=disk,format=raw

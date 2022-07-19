@@ -1,0 +1,15 @@
+{
+	"configurations": [
+		{
+			"name": "OS",
+			"intelliSenseMode": "clang-x64",
+			"cStandard": "c17",
+			"includePath": [
+				"${workspaceFolder}",
+				"${workspaceFolder}/src",
+				"${workspaceFolder}/gnu-efi/inc"
+			]
+		}
+	],
+	"version": 4
+}

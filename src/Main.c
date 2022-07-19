@@ -1,7 +1,7 @@
-#include "IO.h"
+#include "IO/IO.h"
 #include "Kernel.h"
 
-#include "gnu-efi/inc/efi.h"
+#include "efi.h"
 
 #include <stddef.h>
 #include <stdbool.h>

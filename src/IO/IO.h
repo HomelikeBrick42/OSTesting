@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "Strings.h"
+#include "Util/Strings.h"
 
 typedef struct {
     void* Buffer;

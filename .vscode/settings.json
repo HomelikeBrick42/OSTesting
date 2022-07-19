@@ -6,6 +6,9 @@
 		"stdbool.h": "c",
 		"interrupts.h": "c",
 		"stdint.h": "c",
-		"pageallocator.h": "c"
+		"pageallocator.h": "c",
+		"efimemory.h": "c",
+		"io.h": "c",
+		"idt.h": "c"
 	}
 }

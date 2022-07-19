@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#include "Strings.h"
+#include "Util/Strings.h"
 
 enum {
     EfiMemoryType_ReservedMemoryType,

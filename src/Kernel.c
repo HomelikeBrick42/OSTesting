@@ -1,9 +1,9 @@
 #include "Kernel.h"
-#include "IO.h"
-#include "IDT.h"
-#include "Interrupts.h"
-#include "EfiMemory.h"
-#include "PageAllocator.h"
+#include "IO/IO.h"
+#include "Interrupts/IDT.h"
+#include "Interrupts/Interrupts.h"
+#include "Memory/EfiMemory.h"
+#include "Memory/PageAllocator.h"
 
 #include <stddef.h>
 #include <stdint.h>
