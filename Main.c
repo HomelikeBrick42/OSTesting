@@ -116,7 +116,7 @@ EFI_STATUS EFIAPI EfiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
                                : info->PixelFormat == PixelBlueGreenRedReserved8BitPerColor ? FramebufferFormat_ABGR
                                                                                             : FramebufferFormat_Invalid;
 
-    KernelMain(map, mapSize, descriptorSize);
+    KernelMain((EfiMemoryDescriptor*)map, mapSize, descriptorSize);
 
     return EFI_SUCCESS;
 }

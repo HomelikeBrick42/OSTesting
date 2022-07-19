@@ -2,6 +2,10 @@
 
 Framebuffer Screen;
 
+size_t LeftMargin = 10;
+size_t CursorX    = 10;
+size_t CursorY    = 20;
+
 void PutPixel(size_t x, size_t y, Color color) {
     if (x >= Screen.Width)
         return;

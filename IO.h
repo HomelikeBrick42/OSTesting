@@ -36,3 +36,7 @@ extern unsigned char Font[95][13];
 void PutChar(size_t x, size_t y, char chr, Color backgroundColor, Color textColor);
 
 void PutString(size_t startX, size_t* x, size_t* y, String string, Color backgroundColor, Color textColor);
+
+extern size_t LeftMargin;
+extern size_t CursorX;
+extern size_t CursorY;

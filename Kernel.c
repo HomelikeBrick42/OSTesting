@@ -3,6 +3,7 @@
 #include "IDT.h"
 #include "Interrupts.h"
 #include "EfiMemory.h"
+#include "PageAllocator.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -27,33 +28,37 @@ static void PrepareInterrupts(void) {
     asm volatile("sti");
 }
 
-void KernelMain(void* memoryMap, size_t memoryMapSize, size_t memoryMapDescriptorSize) {
+void KernelMain(EfiMemoryDescriptor* memoryMap, size_t memoryMapSize, size_t memoryMapDescriptorSize) {
     const Color BackgroundColor = { .r = 0, .g = 0, .b = 51 };
+    const Color TextColor       = { .r = 255, .g = 51, .b = 51 };
     FillRect(0, 0, Screen.Width, Screen.Height, BackgroundColor);
 
-    const Color TextColor   = { .r = 255, .g = 51, .b = 51 };
-    const size_t LeftMargin = 10;
-    size_t cursorX          = LeftMargin;
-    size_t cursorY          = 20;
+    if (!PageAllocator_Initialize(memoryMap, memoryMapSize, memoryMapDescriptorSize)) {
+        PutString(LeftMargin,
+                  &CursorX,
+                  &CursorY,
+                  String_FromLiteral("Failed to initialize page allocator"),
+                  BackgroundColor,
+                  TextColor);
+        goto end;
+    }
 
-    {
-        size_t memoryMapEntries = memoryMapSize / memoryMapDescriptorSize;
-        for (size_t i = 0; i < memoryMapEntries; i++) {
-            EfiMemoryDescriptor* descriptor = (EfiMemoryDescriptor*)((uint64_t)memoryMap + i * memoryMapDescriptorSize);
-
-            PutString(LeftMargin, &cursorX, &cursorY, String_FromLiteral("Memory Type: "), BackgroundColor, TextColor);
-            if (descriptor->Type < EfiMemoryType_Count) {
-                PutString(LeftMargin, &cursorX, &cursorY, EfiMemoryType_Names[descriptor->Type], BackgroundColor, TextColor);
-            } else {
-                PutString(LeftMargin, &cursorX, &cursorY, String_FromLiteral("Unknown"), BackgroundColor, TextColor);
-            }
-            PutString(LeftMargin, &cursorX, &cursorY, String_FromLiteral("\n"), BackgroundColor, TextColor);
+    for (size_t i = 0; i < 30; i++) {
+        void* page = PageAllocator_AllocatePages(1);
+        PutString(LeftMargin, &CursorX, &CursorY, String_FromLiteral("Allocated: "), BackgroundColor, TextColor);
+        char buffer[20];
+        PutString(LeftMargin, &CursorX, &CursorY, UInt64ToString(buffer, (uint64_t)page), BackgroundColor, TextColor);
+        PutString(LeftMargin, &CursorX, &CursorY, String_FromLiteral("\n"), BackgroundColor, TextColor);
+        if (i % 2 == 0) {
+            PageAllocator_UnreservePages(page, 1);
         }
     }
 
+    // TODO: for when we have a GDT
     if (false)
         PrepareInterrupts();
 
+end:
     while (true) {
         asm volatile("hlt");
     }

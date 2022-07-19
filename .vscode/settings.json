@@ -4,6 +4,8 @@
 		"stddef.h": "c",
 		"efi.h": "c",
 		"stdbool.h": "c",
-		"interrupts.h": "c"
+		"interrupts.h": "c",
+		"stdint.h": "c",
+		"pageallocator.h": "c"
 	}
 }
