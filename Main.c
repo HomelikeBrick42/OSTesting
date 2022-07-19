@@ -81,11 +81,31 @@ EFI_STATUS EFIAPI EfiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
     SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Loaded GOP\r\n");
 
     EFI_MEMORY_DESCRIPTOR* map = NULL;
-    UINTN mapSize, mapKey, descriptorSize;
-    UINT32 descriptorVersion;
-    SystemTable->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &descriptorSize, &descriptorVersion);
-    SystemTable->BootServices->AllocatePool(EfiLoaderData, mapSize, (void**)&map);
-    SystemTable->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &descriptorSize, &descriptorVersion);
+    UINTN mapSize = 0, mapKey = 0, descriptorSize = 0;
+    UINT32 descriptorVersion = 0;
+    while (true) {
+        status = SystemTable->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &descriptorSize, &descriptorVersion);
+        if (status == EFI_BUFFER_TOO_SMALL) {
+            if (map != NULL) {
+                status = SystemTable->BootServices->FreePool(map);
+                if (EFI_ERROR(status)) {
+                    SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Unable free memory for the memory map\r\n");
+                    return status;
+                }
+            }
+            status = SystemTable->BootServices->AllocatePool(EfiLoaderData, mapSize, (void**)&map);
+            if (EFI_ERROR(status)) {
+                SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Unable allocate memory for the memory map\r\n");
+                return status;
+            }
+            continue;
+        } else if (EFI_ERROR(status)) {
+            SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Unable to get the memory map size\r\n");
+            return status;
+        } else {
+            break;
+        }
+    }
     SystemTable->BootServices->ExitBootServices(ImageHandle, mapKey);
 
     Screen.Buffer            = (void*)gop->Mode->FrameBufferBase;

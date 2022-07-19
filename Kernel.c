@@ -36,26 +36,17 @@ void KernelMain(void* memoryMap, size_t memoryMapSize, size_t memoryMapDescripto
     size_t cursorX          = LeftMargin;
     size_t cursorY          = 20;
 
-    char buffer[20];
-    PutString(LeftMargin, &cursorX, &cursorY, String_FromLiteral("Memory Map: "), BackgroundColor, TextColor);
-    PutString(LeftMargin, &cursorX, &cursorY, UInt64ToString(buffer, (uint64_t)memoryMap), BackgroundColor, TextColor);
-    PutString(LeftMargin, &cursorX, &cursorY, String_FromLiteral("\n"), BackgroundColor, TextColor);
-
-    PutString(LeftMargin, &cursorX, &cursorY, String_FromLiteral("Memory Map Size: "), BackgroundColor, TextColor);
-    PutString(LeftMargin, &cursorX, &cursorY, UInt64ToString(buffer, memoryMapSize), BackgroundColor, TextColor);
-    PutString(LeftMargin, &cursorX, &cursorY, String_FromLiteral("\n"), BackgroundColor, TextColor);
-
-    PutString(LeftMargin, &cursorX, &cursorY, String_FromLiteral("Memory Map Descriptor Size: "), BackgroundColor, TextColor);
-    PutString(LeftMargin, &cursorX, &cursorY, UInt64ToString(buffer, memoryMapDescriptorSize), BackgroundColor, TextColor);
-    PutString(LeftMargin, &cursorX, &cursorY, String_FromLiteral("\n"), BackgroundColor, TextColor);
-
     {
         size_t memoryMapEntries = memoryMapSize / memoryMapDescriptorSize;
         for (size_t i = 0; i < memoryMapEntries; i++) {
             EfiMemoryDescriptor* descriptor = (EfiMemoryDescriptor*)((uint64_t)memoryMap + i * memoryMapDescriptorSize);
 
             PutString(LeftMargin, &cursorX, &cursorY, String_FromLiteral("Memory Type: "), BackgroundColor, TextColor);
-            PutString(LeftMargin, &cursorX, &cursorY, UInt64ToString(buffer, descriptor->Type), BackgroundColor, TextColor);
+            if (descriptor->Type < EfiMemoryType_Count) {
+                PutString(LeftMargin, &cursorX, &cursorY, EfiMemoryType_Names[descriptor->Type], BackgroundColor, TextColor);
+            } else {
+                PutString(LeftMargin, &cursorX, &cursorY, String_FromLiteral("Unknown"), BackgroundColor, TextColor);
+            }
             PutString(LeftMargin, &cursorX, &cursorY, String_FromLiteral("\n"), BackgroundColor, TextColor);
         }
     }
