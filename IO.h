@@ -3,6 +3,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "Strings.h"
+
 typedef struct {
     void* Buffer;
     size_t Width;
@@ -33,14 +35,4 @@ enum {
 extern unsigned char Font[95][13];
 void PutChar(size_t x, size_t y, char chr, Color backgroundColor, Color textColor);
 
-typedef struct {
-    char* Data;
-    size_t Length;
-} String;
-#define String_FromLiteral(s)               \
-    (String) {                              \
-        .Data = s, .Length = sizeof(s) - 1, \
-    }
-
-String UInt64ToString(char buffer[static 20], uint64_t value);
 void PutString(size_t startX, size_t* x, size_t* y, String string, Color backgroundColor, Color textColor);

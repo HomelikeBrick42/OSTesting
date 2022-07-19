@@ -25,8 +25,8 @@ static EFI_STATUS LocateGOP(EFI_SYSTEM_TABLE* SystemTable, EFI_GRAPHICS_OUTPUT_P
     SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Located GOP\r\n");
 
     EFI_GRAPHICS_OUTPUT_MODE_INFORMATION* info;
-    UINTN SizeOfInfo, numModes, nativeMode;
-    status = (*gop)->QueryMode((*gop), (*gop)->Mode == NULL ? 0 : (*gop)->Mode->Mode, &SizeOfInfo, &info);
+    UINTN sizeOfInfo, numModes, nativeMode;
+    status = (*gop)->QueryMode((*gop), (*gop)->Mode == NULL ? 0 : (*gop)->Mode->Mode, &sizeOfInfo, &info);
     if (status == EFI_NOT_STARTED)
         status = (*gop)->SetMode((*gop), 0);
     if (EFI_ERROR(status)) {
@@ -39,7 +39,7 @@ static EFI_STATUS LocateGOP(EFI_SYSTEM_TABLE* SystemTable, EFI_GRAPHICS_OUTPUT_P
 
     if (false) {
         for (size_t i = 0; i < (size_t)numModes; i++) {
-            status = (*gop)->QueryMode((*gop), i, &SizeOfInfo, &info);
+            status = (*gop)->QueryMode((*gop), i, &sizeOfInfo, &info);
             SystemTable->ConOut->OutputString(SystemTable->ConOut, L"mode ");
             char buffer[20];
             WriteString(SystemTable, UInt64ToString(buffer, i));
@@ -80,6 +80,14 @@ EFI_STATUS EFIAPI EfiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
 
     SystemTable->ConOut->OutputString(SystemTable->ConOut, L"Loaded GOP\r\n");
 
+    EFI_MEMORY_DESCRIPTOR* map = NULL;
+    UINTN mapSize, mapKey, descriptorSize;
+    UINT32 descriptorVersion;
+    SystemTable->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &descriptorSize, &descriptorVersion);
+    SystemTable->BootServices->AllocatePool(EfiLoaderData, mapSize, (void**)&map);
+    SystemTable->BootServices->GetMemoryMap(&mapSize, map, &mapKey, &descriptorSize, &descriptorVersion);
+    SystemTable->BootServices->ExitBootServices(ImageHandle, mapKey);
+
     Screen.Buffer            = (void*)gop->Mode->FrameBufferBase;
     Screen.Width             = gop->Mode->Info->HorizontalResolution;
     Screen.Height            = gop->Mode->Info->VerticalResolution;
@@ -88,7 +96,7 @@ EFI_STATUS EFIAPI EfiMain(EFI_HANDLE ImageHandle, EFI_SYSTEM_TABLE* SystemTable)
                                : info->PixelFormat == PixelBlueGreenRedReserved8BitPerColor ? FramebufferFormat_ABGR
                                                                                             : FramebufferFormat_Invalid;
 
-    KernelMain();
+    KernelMain(map, mapSize, descriptorSize);
 
     return EFI_SUCCESS;
 }

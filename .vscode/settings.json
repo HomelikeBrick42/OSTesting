@@ -2,6 +2,8 @@
 	"files.associations": {
 		"*.shader": "glsl",
 		"stddef.h": "c",
-		"efi.h": "c"
+		"efi.h": "c",
+		"stdbool.h": "c",
+		"interrupts.h": "c"
 	}
 }
